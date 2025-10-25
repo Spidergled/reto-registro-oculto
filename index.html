@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puzzle del Escudo - Arrastra y coloca</title>
+<style>
+  body {
+    background: #e8edf5;
+    font-family: system-ui, Segoe UI, Roboto, Arial;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #0b1220;
+  }
+  h1 { margin-bottom: 10px; text-align:center; }
+  #container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 40px;
+    justify-content: center;
+    margin-top: 20px;
+  }
+  #pieces, #board {
+    display: grid;
+    grid-template-columns: repeat(3, 120px);
+    grid-template-rows: repeat(3, 120px);
+    gap: 4px;
+    padding: 6px;
+    border-radius: 10px;
+    background: #dce6ff;
+    min-width: 380px;
+  }
+  #pieces {
+    background: #eef3ff;
+    min-height: 380px;
+  }
+  .piece, .slot {
+    width: 120px;
+    height: 120px;
+    border-radius: 4px;
+    background-size: 360px 360px;
+    background-repeat: no-repeat;
+  }
+  .piece {
+    cursor: grab;
+    transition: transform 0.1s;
+  }
+  .piece:active { transform: scale(0.95); cursor: grabbing; }
+  .slot {
+    background: #bcd0ff;
+  }
+  #win {
+    display: none;
+    margin-top: 25px;
+    padding: 15px;
+    border-radius: 8px;
+    background: #d4f4d2;
+    color: #06320c;
+    text-align: center;
+  }
+  button {
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 15px;
+  }
+</style>
+</head>
+<body>
+  <h1>🧩 Arma el escudo del Real Madrid</h1>
+  <p>Arrastra las piezas al tablero. Puedes moverlas libremente hasta completar la imagen.</p>
+
+  <div id="container">
+    <div id="pieces"></div>
+    <div id="board"></div>
+  </div>
+
+  <button id="resetBtn">🔄 Reiniciar puzzle</button>
+
+  <div id="win">
+    <strong>¡Puzzle completado!</strong><br>
+    La contraseña es: <code id="pw">spiderman</code><br><br>
+    <button id="copyBtn">Copiar contraseña</button>
+  </div>
+
+<script>
+const IMG_SRC = 'escudo.png'; // tu imagen
+const PW = 'spiderman';       // contraseña
+const N = 3;                  // tamaño del puzzle (3x3)
+
+const piecesContainer = document.getElementById('pieces');
+const boardContainer = document.getElementById('board');
+const winBox = document.getElementById('win');
+const pwText = document.getElementById('pw');
+const copyBtn = document.getElementById('copyBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+function initPuzzle() {
+  piecesContainer.innerHTML = '';
+  boardContainer.innerHTML = '';
+  winBox.style.display = 'none';
+
+  // Crear índices de piezas y barajarlos
+  const indices = Array.from({ length: N * N }, (_, i) => i);
+  indices.sort(() => Math.random() - 0.5);
+
+  // Crear piezas fuera del tablero
+  indices.forEach(i => {
+    const piece = document.createElement('div');
+    piece.classList.add('piece');
+    piece.draggable = true;
+    piece.dataset.index = i;
+    const row = Math.floor(i / N);
+    const col = i % N;
+    piece.style.backgroundImage = `url(${IMG_SRC})`;
+    piece.style.backgroundPosition = `-${col * 120}px -${row * 120}px`;
+    piecesContainer.appendChild(piece);
+    piece.addEventListener('dragstart', dragStart);
+  });
+
+  // Crear slots vacíos en el tablero
+  for (let i = 0; i < N * N; i++) {
+    const slot = document.createElement('div');
+    slot.classList.add('slot');
+    slot.dataset.correct = i;
+    slot.addEventListener('dragover', dragOver);
+    slot.addEventListener('drop', dropPiece);
+    boardContainer.appendChild(slot);
+  }
+
+  // Permitir soltar de nuevo piezas fuera del tablero
+  piecesContainer.addEventListener('dragover', dragOver);
+  piecesContainer.addEventListener('drop', dropBack);
+}
+
+function dragStart(e) {
+  e.dataTransfer.setData('text/plain', e.target.dataset.index);
+}
+
+function dragOver(e) {
+  e.preventDefault();
+}
+
+function dropPiece(e) {
+  e.preventDefault();
+  const pieceIndex = e.dataTransfer.getData('text/plain');
+  const piece = document.querySelector(`.piece[data-index="${pieceIndex}"]`);
+  if (!piece) return;
+  if (e.target.classList.contains('slot')) {
+    if (e.target.firstChild) return; // evita poner dos piezas en el mismo slot
+    e.target.appendChild(piece);
+  }
+  checkWin();
+}
+
+function dropBack(e) {
+  e.preventDefault();
+  const pieceIndex = e.dataTransfer.getData('text/plain');
+  const piece = document.querySelector(`.piece[data-index="${pieceIndex}"]`);
+  if (piece) piecesContainer.appendChild(piece);
+  checkWin();
+}
+
+function checkWin() {
+  const slots = boardContainer.querySelectorAll('.slot');
+  let correct = 0;
+  slots.forEach(slot => {
+    const child = slot.firstChild;
+    if (child && parseInt(slot.dataset.correct) === parseInt(child.dataset.index)) {
+      correct++;
+    }
+  });
+  if (correct === N * N) {
+    setTimeout(() => { winBox.style.display = 'block'; }, 300);
+  }
+}
+
+copyBtn.addEventListener('click', () => {
+  navigator.clipboard.writeText(PW);
+  copyBtn.textContent = '¡Copiado!';
+  setTimeout(() => copyBtn.textContent = 'Copiar contraseña', 2000);
+});
+
+resetBtn.addEventListener('click', initPuzzle);
+window.onload = initPuzzle;
+</script>
+</body>
+</html>
